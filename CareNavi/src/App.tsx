@@ -6,6 +6,7 @@ import { StatusBar, AppState, AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigator from './navigation/RootNavigator';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { supabase } from './services/supabase';
 import { useAuthStore } from './stores/useAuthStore';
 import { useDailyStore } from './stores/useDailyStore';
@@ -78,11 +79,13 @@ export default function App() {
   }, [checkDailyReset]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <StatusBar barStyle="dark-content" />
-        <RootNavigator />
-      </NavigationContainer>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NavigationContainer>
+          <StatusBar barStyle="dark-content" />
+          <RootNavigator />
+        </NavigationContainer>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
