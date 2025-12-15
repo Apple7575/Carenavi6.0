@@ -1,14 +1,167 @@
-// T022: Home Screen - Condition check + Missions
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+// T042: Home Screen with condition check UI
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import ChatBubble from '../components/chat/ChatBubble';
+import ChatInput from '../components/chat/ChatInput';
+import { useAuthStore } from '../stores/useAuthStore';
+import { useDailyStore } from '../stores/useDailyStore';
+import { useConditionStore } from '../stores/useConditionStore';
+import { ChatMessage } from '../types';
+import { CHARACTER_GREETINGS } from '../utils/constants';
+import { getRandomItem } from '../utils/helpers';
 
 export default function HomeScreen() {
+  const { session } = useAuthStore();
+  const {
+    dailyState,
+    isLoading: dailyLoading,
+    fetchTodayState,
+    transitionToInProgress,
+    isBeforeCheck,
+    isInProgress,
+    isCompleted,
+  } = useDailyStore();
+  const {
+    analysis,
+    isAnalyzing,
+    analyzeAndSave,
+  } = useConditionStore();
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Fetch daily state on mount
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchTodayState(session.user.id);
+    }
+  }, [session?.user?.id, fetchTodayState]);
+
+  // Add greeting message when in before_check state
+  useEffect(() => {
+    if (isBeforeCheck() && messages.length === 0) {
+      const greeting = getRandomItem(CHARACTER_GREETINGS);
+      addMessage('character', greeting);
+    }
+  }, [dailyState, isBeforeCheck, messages.length]);
+
+  const addMessage = useCallback((type: ChatMessage['type'], content: string) => {
+    const newMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type,
+      content,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, newMessage]);
+  }, []);
+
+  const handleSubmitCondition = useCallback(
+    async (text: string) => {
+      if (!session?.user?.id) return;
+
+      // Add user message
+      addMessage('user', text);
+
+      // Analyze condition
+      const success = await analyzeAndSave(session.user.id, text);
+
+      if (success) {
+        // Add response based on analysis
+        addMessage(
+          'character',
+          `알겠어! ${analysis?.mainIssue || '오늘 컨디션'}에 맞는 미션을 준비할게!`
+        );
+
+        // Transition to in_progress
+        await transitionToInProgress(session.user.id);
+      } else {
+        addMessage('character', '좀 더 자세히 알려줄래요?');
+      }
+    },
+    [session?.user?.id, addMessage, analyzeAndSave, analysis, transitionToInProgress]
+  );
+
+  // Render based on daily state
+  const renderContent = () => {
+    if (dailyLoading) {
+      return (
+        <View style={styles.centerContent}>
+          <Text style={styles.loadingText}>로딩 중...</Text>
+        </View>
+      );
+    }
+
+    if (isCompleted()) {
+      return (
+        <View style={styles.centerContent}>
+          <Text style={styles.completedEmoji}>🎉</Text>
+          <Text style={styles.completedTitle}>오늘의 미션 완료!</Text>
+          <Text style={styles.completedSubtitle}>내일 또 만나요!</Text>
+        </View>
+      );
+    }
+
+    if (isInProgress()) {
+      return (
+        <View style={styles.centerContent}>
+          <Text style={styles.inProgressEmoji}>💪</Text>
+          <Text style={styles.inProgressTitle}>미션 진행 중!</Text>
+          <Text style={styles.inProgressSubtitle}>
+            분석 결과: {analysis?.mood || '분석 중'} / {analysis?.physical || '분석 중'}
+          </Text>
+        </View>
+      );
+    }
+
+    // Before check - show chat interface
+    return (
+      <>
+        <ScrollView
+          style={styles.chatContainer}
+          contentContainerStyle={styles.chatContent}
+        >
+          {messages.map((message) => (
+            <ChatBubble
+              key={message.id}
+              type={message.type}
+              content={message.content}
+            />
+          ))}
+          {isAnalyzing && (
+            <ChatBubble type="character" content="분석 중..." />
+          )}
+        </ScrollView>
+        <ChatInput
+          onSubmit={handleSubmitCondition}
+          disabled={isAnalyzing}
+          loading={isAnalyzing}
+        />
+      </>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>홈</Text>
-        <Text style={styles.subtitle}>컨디션 체크 & 미션</Text>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>오늘의 컨디션</Text>
+          <Text style={styles.headerSubtitle}>
+            {dailyState?.date || '날짜 로딩 중...'}
+          </Text>
+        </View>
+        {renderContent()}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -18,20 +171,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5F5',
   },
-  content: {
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    padding: 16,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  chatContainer: {
+    flex: 1,
+  },
+  chatContent: {
+    paddingVertical: 16,
+  },
+  centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  title: {
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  completedEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  completedTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 8,
   },
-  subtitle: {
+  completedSubtitle: {
     fontSize: 16,
     color: '#666',
+  },
+  inProgressEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  inProgressTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  inProgressSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
