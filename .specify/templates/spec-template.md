@@ -100,6 +100,21 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+### Security & Privacy Requirements *(mandatory if handling sensitive data)*
+
+<!--
+  Per CareNavi Constitution Principle I: Security & Privacy First
+  If this feature handles PHI, PII, or any sensitive data, document:
+-->
+
+- **SR-001**: Authentication requirements: [e.g., "Users must authenticate via OAuth 2.0 before accessing"]
+- **SR-002**: Authorization rules: [e.g., "Users can only access their own health records"]
+- **SR-003**: Data encryption: [e.g., "All PHI must be encrypted at rest using AES-256"]
+- **SR-004**: Audit logging: [e.g., "All data access must be logged with user ID, timestamp, action"]
+- **SR-005**: Data validation: [e.g., "All user inputs must be sanitized to prevent XSS/injection attacks"]
+
+If this feature does NOT handle sensitive data, state: "No sensitive data handled - standard security practices apply."
+
 ## Success Criteria *(mandatory)*
 
 <!--

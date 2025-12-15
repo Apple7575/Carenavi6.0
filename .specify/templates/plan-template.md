@@ -31,7 +31,16 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with CareNavi Constitution (`.specify/memory/constitution.md` v1.0.0):
+
+- [ ] **Security & Privacy First**: Does this feature handle sensitive data? If yes, encryption, authentication, and authorization strategy documented?
+- [ ] **Test-Driven Development**: Have test requirements been identified? TDD approach confirmed?
+- [ ] **Code Maintainability**: Is the design simple and clear? Are complex decisions justified?
+- [ ] **Performance & Scalability**: Have performance requirements and SLAs been defined? Scalability concerns addressed?
+- [ ] **Data Integrity & Validation**: Are all input validation points identified? Data integrity constraints documented?
+- [ ] **Healthcare-Specific**: If handling PHI/PII, are audit logging, consent mechanisms, and safety requirements addressed?
+
+Any violations MUST be documented in "Complexity Tracking" section with justification.
 
 ## Project Structure
 

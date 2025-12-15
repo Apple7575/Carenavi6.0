@@ -2,6 +2,17 @@
 
 Auto-generated from all feature plans. Last updated: [DATE]
 
+## Constitution
+
+All development MUST comply with the project constitution at `.specify/memory/constitution.md`. Key principles:
+- Security & Privacy First
+- Test-Driven Development (NON-NEGOTIABLE)
+- Code Maintainability
+- Performance & Scalability
+- Data Integrity & Validation
+
+See constitution file for full details and rationale.
+
 ## Active Technologies
 
 [EXTRACTED FROM ALL PLAN.MD FILES]
