@@ -3,7 +3,7 @@
 // Enums
 export type DailyStateValue = 'before_check' | 'in_progress' | 'daily_completed';
 export type MissionType = 'easy' | 'normal' | 'challenge';
-export type CharacterStage = 'egg' | 'baby' | 'child' | 'teen' | 'adult';
+export type CharacterStage = 'egg' | 'chick' | 'chicken' | 'phoenix';
 export type ProductCategory = 'supplements' | 'wellness' | 'food' | 'accessories';
 
 // User
@@ -159,4 +159,17 @@ export interface ChatMessage {
   type: 'character' | 'user' | 'system';
   content: string;
   timestamp: Date;
+}
+
+// Growth Profile
+export interface GrowthProfile {
+  id: string;
+  user_id: string;
+  total_xp: number;
+  level: number;
+  stage: CharacterStage;
+  current_level_xp: number;
+  next_level_xp: number;
+  created_at: string;
+  updated_at: string;
 }

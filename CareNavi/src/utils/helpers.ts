@@ -32,14 +32,14 @@ export function calculateLevel(totalXp: number): number {
 }
 
 /**
- * Calculate character stage from level
+ * Calculate character stage from total XP
  */
-export function calculateStage(level: number): CharacterStage {
-  if (level < STAGE_THRESHOLDS.baby) return 'egg';
-  if (level < STAGE_THRESHOLDS.child) return 'baby';
-  if (level < STAGE_THRESHOLDS.teen) return 'child';
-  if (level < STAGE_THRESHOLDS.adult) return 'teen';
-  return 'adult';
+export function calculateStage(totalXp: number): CharacterStage {
+  const level = calculateLevel(totalXp);
+  if (level < STAGE_THRESHOLDS.chick) return 'egg';
+  if (level < STAGE_THRESHOLDS.chicken) return 'chick';
+  if (level < STAGE_THRESHOLDS.phoenix) return 'chicken';
+  return 'phoenix';
 }
 
 /**

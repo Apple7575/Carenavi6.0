@@ -16,7 +16,8 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useDailyStore } from '../stores/useDailyStore';
 import { useConditionStore } from '../stores/useConditionStore';
 import { useMissionStore } from '../stores/useMissionStore';
-import { ChatMessage } from '../types';
+import { useGrowthStore } from '../stores/useGrowthStore';
+import { ChatMessage, Mission } from '../types';
 import { CHARACTER_GREETINGS } from '../utils/constants';
 import { getRandomItem } from '../utils/helpers';
 
@@ -27,6 +28,7 @@ export default function HomeScreen() {
     isLoading: dailyLoading,
     fetchTodayState,
     transitionToInProgress,
+    transitionToCompleted,
     isBeforeCheck,
     isInProgress,
     isCompleted,
@@ -42,9 +44,13 @@ export default function HomeScreen() {
     fetchTodayMissions,
     generateMissions,
     completeMission: completeMissionAction,
+    areAllCompleted,
   } = useMissionStore();
 
+  const { addXPAndSync } = useGrowthStore();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Fetch daily state on mount
   useEffect(() => {
@@ -114,9 +120,32 @@ export default function HomeScreen() {
   const handleCompleteMission = useCallback(
     async (missionId: string) => {
       if (!session?.user?.id) return;
-      await completeMissionAction(missionId, session.user.id);
+
+      // Find mission to get XP reward
+      const mission = missions.find((m) => m.id === missionId);
+      if (!mission) return;
+
+      // Complete mission
+      const completedMission = await completeMissionAction(missionId, session.user.id);
+      if (!completedMission) return;
+
+      // T069: Add XP to growth profile
+      await addXPAndSync(session.user.id, completedMission.xp_reward);
+
+      // T070: Check if all missions completed -> transition to daily_completed
+      // Need to check after state updates
+      setTimeout(async () => {
+        if (areAllCompleted()) {
+          setShowCelebration(true);
+          // Transition to daily_completed after celebration
+          setTimeout(async () => {
+            await transitionToCompleted(session.user.id);
+            setShowCelebration(false);
+          }, 2000);
+        }
+      }, 100);
     },
-    [session?.user?.id, completeMissionAction]
+    [session?.user?.id, missions, completeMissionAction, addXPAndSync, areAllCompleted, transitionToCompleted]
   );
 
   // Render based on daily state
@@ -198,6 +227,15 @@ export default function HomeScreen() {
         </View>
         {renderContent()}
       </KeyboardAvoidingView>
+
+      {/* T071: Mission completion celebration overlay */}
+      {showCelebration && (
+        <View style={styles.celebrationOverlay}>
+          <Text style={styles.celebrationEmoji}>🎉</Text>
+          <Text style={styles.celebrationTitle}>모든 미션 완료!</Text>
+          <Text style={styles.celebrationSubtitle}>오늘도 건강한 하루였어요!</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -270,5 +308,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  celebrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  celebrationEmoji: {
+    fontSize: 80,
+    marginBottom: 24,
+  },
+  celebrationTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  celebrationSubtitle: {
+    fontSize: 18,
+    color: '#E0E0E0',
   },
 });

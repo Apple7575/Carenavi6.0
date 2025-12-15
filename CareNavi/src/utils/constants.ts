@@ -16,11 +16,10 @@ export const XP_INCREMENT_PER_LEVEL = 50;
 
 // Stage evolution levels
 export const STAGE_THRESHOLDS: Record<CharacterStage, number> = {
-  egg: 1,      // Level 1-4
-  baby: 5,     // Level 5-14
-  child: 15,   // Level 15-29
-  teen: 30,    // Level 30-49
-  adult: 50,   // Level 50+
+  egg: 1,       // Level 1-4
+  chick: 5,     // Level 5-14
+  chicken: 15,  // Level 15-29
+  phoenix: 30,  // Level 30+
 };
 
 // Character default values
