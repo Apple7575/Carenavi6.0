@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import ChatBubble from '../components/chat/ChatBubble';
 import ChatInput from '../components/chat/ChatInput';
+import MissionList from '../components/mission/MissionList';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useDailyStore } from '../stores/useDailyStore';
 import { useConditionStore } from '../stores/useConditionStore';
+import { useMissionStore } from '../stores/useMissionStore';
 import { ChatMessage } from '../types';
 import { CHARACTER_GREETINGS } from '../utils/constants';
 import { getRandomItem } from '../utils/helpers';
@@ -30,10 +32,17 @@ export default function HomeScreen() {
     isCompleted,
   } = useDailyStore();
   const {
-    analysis,
     isAnalyzing,
     analyzeAndSave,
   } = useConditionStore();
+
+  const {
+    missions,
+    isLoading: missionsLoading,
+    fetchTodayMissions,
+    generateMissions,
+    completeMission: completeMissionAction,
+  } = useMissionStore();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -43,6 +52,13 @@ export default function HomeScreen() {
       fetchTodayState(session.user.id);
     }
   }, [session?.user?.id, fetchTodayState]);
+
+  // Fetch missions when in_progress
+  useEffect(() => {
+    if (session?.user?.id && isInProgress()) {
+      fetchTodayMissions(session.user.id);
+    }
+  }, [session?.user?.id, dailyState, isInProgress, fetchTodayMissions]);
 
   // Add greeting message when in before_check state
   useEffect(() => {
@@ -70,13 +86,20 @@ export default function HomeScreen() {
       addMessage('user', text);
 
       // Analyze condition
-      const success = await analyzeAndSave(session.user.id, text);
+      const result = await analyzeAndSave(session.user.id, text);
 
-      if (success) {
+      if (result.success && result.analysis && result.conditionRecordId) {
         // Add response based on analysis
         addMessage(
           'character',
-          `알겠어! ${analysis?.mainIssue || '오늘 컨디션'}에 맞는 미션을 준비할게!`
+          `알겠어! ${result.analysis.mainIssue || '오늘 컨디션'}에 맞는 미션을 준비할게!`
+        );
+
+        // Generate missions based on analysis
+        await generateMissions(
+          session.user.id,
+          result.conditionRecordId,
+          result.analysis
         );
 
         // Transition to in_progress
@@ -85,7 +108,15 @@ export default function HomeScreen() {
         addMessage('character', '좀 더 자세히 알려줄래요?');
       }
     },
-    [session?.user?.id, addMessage, analyzeAndSave, analysis, transitionToInProgress]
+    [session?.user?.id, addMessage, analyzeAndSave, generateMissions, transitionToInProgress]
+  );
+
+  const handleCompleteMission = useCallback(
+    async (missionId: string) => {
+      if (!session?.user?.id) return;
+      await completeMissionAction(missionId, session.user.id);
+    },
+    [session?.user?.id, completeMissionAction]
   );
 
   // Render based on daily state
@@ -109,14 +140,19 @@ export default function HomeScreen() {
     }
 
     if (isInProgress()) {
+      if (missionsLoading) {
+        return (
+          <View style={styles.centerContent}>
+            <Text style={styles.loadingText}>미션 로딩 중...</Text>
+          </View>
+        );
+      }
+
       return (
-        <View style={styles.centerContent}>
-          <Text style={styles.inProgressEmoji}>💪</Text>
-          <Text style={styles.inProgressTitle}>미션 진행 중!</Text>
-          <Text style={styles.inProgressSubtitle}>
-            분석 결과: {analysis?.mood || '분석 중'} / {analysis?.physical || '분석 중'}
-          </Text>
-        </View>
+        <MissionList
+          missions={missions}
+          onCompleteMission={handleCompleteMission}
+        />
       );
     }
 

@@ -37,7 +37,7 @@ export async function analyzeCondition(
   // Validate input
   const validation = conditionInputSchema.safeParse({ rawInput: request.rawInput });
   if (!validation.success) {
-    throw new Error(validation.error.errors[0].message);
+    throw new Error(validation.error.issues[0].message);
   }
 
   const today = getTodayDate();
