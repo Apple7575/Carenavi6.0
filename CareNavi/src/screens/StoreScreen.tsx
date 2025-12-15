@@ -1,14 +1,19 @@
 // T085: Store Screen - Product browsing with grid, search, filters
+// T097: Add RecommendationSection
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import SearchBar from '../components/store/SearchBar';
 import CategoryFilter from '../components/store/CategoryFilter';
 import ProductGrid from '../components/store/ProductGrid';
 import ProductDetailModal from '../components/store/ProductDetailModal';
+import RecommendationSection from '../components/store/RecommendationSection';
 import { useProductStore } from '../stores/useProductStore';
-import { Product } from '../types';
+import { useRecommendationStore } from '../stores/useRecommendationStore';
+import { useAuthStore } from '../stores/useAuthStore';
+import { Product, ProductRecommendation } from '../types';
 
 export default function StoreScreen() {
+  const { session } = useAuthStore();
   const {
     products,
     selectedCategory,
@@ -22,6 +27,13 @@ export default function StoreScreen() {
     getFilteredProducts,
   } = useProductStore();
 
+  const {
+    recommendations,
+    isLoading: recLoading,
+    fetchTodayRecommendations,
+    trackClick,
+  } = useRecommendationStore();
+
   const [showDetail, setShowDetail] = useState(false);
 
   // Fetch products on mount and when category changes
@@ -29,12 +41,32 @@ export default function StoreScreen() {
     fetchProducts({ category: selectedCategory ?? undefined });
   }, [selectedCategory, fetchProducts]);
 
+  // Fetch today's recommendations
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchTodayRecommendations(session.user.id);
+    }
+  }, [session?.user?.id, fetchTodayRecommendations]);
+
   const handleProductPress = useCallback(
     (product: Product) => {
       setSelectedProduct(product);
       setShowDetail(true);
     },
     [setSelectedProduct]
+  );
+
+  const handleRecommendationPress = useCallback(
+    async (recommendation: ProductRecommendation) => {
+      // T099: Track click
+      await trackClick(recommendation.id);
+
+      if (recommendation.product) {
+        setSelectedProduct(recommendation.product);
+        setShowDetail(true);
+      }
+    },
+    [trackClick, setSelectedProduct]
   );
 
   const handleCloseDetail = useCallback(() => {
@@ -57,16 +89,25 @@ export default function StoreScreen() {
         placeholder="상품 검색"
       />
 
-      <CategoryFilter
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-      />
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* AI Recommendations */}
+        <RecommendationSection
+          recommendations={recommendations}
+          onRecommendationPress={handleRecommendationPress}
+          loading={recLoading}
+        />
 
-      <ProductGrid
-        products={filteredProducts}
-        onProductPress={handleProductPress}
-        loading={isLoading}
-      />
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
+
+        <ProductGrid
+          products={filteredProducts}
+          onProductPress={handleProductPress}
+          loading={isLoading}
+        />
+      </ScrollView>
 
       <ProductDetailModal
         product={selectedProduct}
@@ -95,5 +136,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 4,
+  },
+  content: {
+    flex: 1,
   },
 });

@@ -17,6 +17,7 @@ import { useDailyStore } from '../stores/useDailyStore';
 import { useConditionStore } from '../stores/useConditionStore';
 import { useMissionStore } from '../stores/useMissionStore';
 import { useGrowthStore } from '../stores/useGrowthStore';
+import { useRecommendationStore } from '../stores/useRecommendationStore';
 import { ChatMessage, Mission } from '../types';
 import { CHARACTER_GREETINGS } from '../utils/constants';
 import { getRandomItem } from '../utils/helpers';
@@ -48,6 +49,7 @@ export default function HomeScreen() {
   } = useMissionStore();
 
   const { addXPAndSync } = useGrowthStore();
+  const { fetchRecommendations } = useRecommendationStore();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -108,13 +110,20 @@ export default function HomeScreen() {
           result.analysis
         );
 
+        // T098: Fetch product recommendations based on condition
+        await fetchRecommendations(
+          session.user.id,
+          result.conditionRecordId,
+          result.analysis
+        );
+
         // Transition to in_progress
         await transitionToInProgress(session.user.id);
       } else {
         addMessage('character', '좀 더 자세히 알려줄래요?');
       }
     },
-    [session?.user?.id, addMessage, analyzeAndSave, generateMissions, transitionToInProgress]
+    [session?.user?.id, addMessage, analyzeAndSave, generateMissions, fetchRecommendations, transitionToInProgress]
   );
 
   const handleCompleteMission = useCallback(
