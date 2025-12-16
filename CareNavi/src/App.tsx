@@ -6,6 +6,7 @@ import { StatusBar, AppState, AppStateStatus, View, ActivityIndicator, StyleShee
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigator from './navigation/RootNavigator';
+import LoginScreen from './screens/LoginScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { supabase } from './services/supabase';
@@ -108,8 +109,28 @@ export default function App() {
     };
   }, [checkDailyReset]);
 
-  // Show loading while checking auth and survey
-  if (authLoading || (session?.user?.id && checkingSurvey)) {
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A90D9" />
+      </View>
+    );
+  }
+
+  // Show login screen if not logged in
+  if (!session?.user?.id) {
+    return (
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <LoginScreen />
+        </GestureHandlerRootView>
+      </ErrorBoundary>
+    );
+  }
+
+  // Show loading while checking survey
+  if (checkingSurvey) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4A90D9" />
@@ -118,7 +139,7 @@ export default function App() {
   }
 
   // Show onboarding if survey not completed
-  if (session?.user?.id && showOnboarding) {
+  if (showOnboarding) {
     return (
       <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -128,6 +149,7 @@ export default function App() {
     );
   }
 
+  // Show main app
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
