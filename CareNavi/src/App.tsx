@@ -1,23 +1,28 @@
 // T023: App entry point with NavigationContainer
 // T074: Auto-check reset on app launch
 // T075: Periodic reset check on app state change
-import React, { useEffect, useCallback, useRef } from 'react';
-import { StatusBar, AppState, AppStateStatus } from 'react-native';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
+import { StatusBar, AppState, AppStateStatus, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigator from './navigation/RootNavigator';
+import OnboardingScreen from './screens/OnboardingScreen';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { supabase } from './services/supabase';
 import { useAuthStore } from './stores/useAuthStore';
 import { useDailyStore } from './stores/useDailyStore';
 import { useMissionStore } from './stores/useMissionStore';
+import { useSurveyStore } from './stores/useSurveyStore';
 import { checkAndResetIfNewDay } from './services/dailyResetService';
 
 export default function App() {
-  const { session, setSession, setLoading } = useAuthStore();
+  const { session, setSession, setLoading, isLoading: authLoading } = useAuthStore();
   const { dailyState, setDailyState } = useDailyStore();
   const { reset: resetMissions } = useMissionStore();
+  const { hasCompleted: hasSurveyCompleted, fetchSurvey, isLoading: surveyLoading } = useSurveyStore();
   const appState = useRef(AppState.currentState);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checkingSurvey, setCheckingSurvey] = useState(true);
 
   // T074: Check daily reset on app launch
   const checkDailyReset = useCallback(async () => {
@@ -60,6 +65,31 @@ export default function App() {
     }
   }, [session?.user?.id, checkDailyReset]);
 
+  // Check survey completion status
+  useEffect(() => {
+    const checkSurvey = async () => {
+      if (session?.user?.id) {
+        setCheckingSurvey(true);
+        await fetchSurvey(session.user.id);
+        setCheckingSurvey(false);
+      } else {
+        setCheckingSurvey(false);
+      }
+    };
+    checkSurvey();
+  }, [session?.user?.id, fetchSurvey]);
+
+  // Update showOnboarding based on survey status
+  useEffect(() => {
+    if (!checkingSurvey && session?.user?.id) {
+      setShowOnboarding(!hasSurveyCompleted);
+    }
+  }, [checkingSurvey, hasSurveyCompleted, session?.user?.id]);
+
+  const handleSurveyComplete = useCallback(() => {
+    setShowOnboarding(false);
+  }, []);
+
   // T075: Check reset when app comes to foreground
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -78,6 +108,26 @@ export default function App() {
     };
   }, [checkDailyReset]);
 
+  // Show loading while checking auth and survey
+  if (authLoading || (session?.user?.id && checkingSurvey)) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A90D9" />
+      </View>
+    );
+  }
+
+  // Show onboarding if survey not completed
+  if (session?.user?.id && showOnboarding) {
+    return (
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <OnboardingScreen onComplete={handleSurveyComplete} />
+        </GestureHandlerRootView>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -89,3 +139,12 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+  },
+});

@@ -1,6 +1,7 @@
 // T050: Mission service
 import { supabase } from './supabase';
 import { Mission, MissionType, ConditionAnalysis } from '../types';
+import { SurveyData } from '../types/survey';
 import { getTodayDate } from '../utils/helpers';
 import { XP_REWARDS, MISSION_DURATIONS } from '../utils/constants';
 import { generateMissionsWithAI } from './geminiService';
@@ -9,6 +10,7 @@ interface GenerateMissionsRequest {
   userId: string;
   conditionRecordId: string;
   analysis: ConditionAnalysis;
+  surveyData?: SurveyData | null;
 }
 
 interface GenerateMissionsResponse {
@@ -54,10 +56,10 @@ export async function generateMissions(
 ): Promise<GenerateMissionsResponse> {
   const today = getTodayDate();
 
-  // T055: Try AI generation first
+  // T055: Try AI generation first (with survey data for personalization)
   let generatedMissions: Partial<Mission>[];
   try {
-    generatedMissions = await generateMissionsWithAI(request.analysis);
+    generatedMissions = await generateMissionsWithAI(request.analysis, request.surveyData);
   } catch (error) {
     console.warn('AI mission generation failed, using fallback:', error);
     generatedMissions = FALLBACK_MISSIONS;

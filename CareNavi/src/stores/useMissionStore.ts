@@ -7,6 +7,7 @@ import {
   completeMission,
 } from '../services/missionService';
 import { ConditionAnalysis } from '../types';
+import { SurveyData } from '../types/survey';
 
 interface MissionState {
   missions: Mission[];
@@ -19,7 +20,8 @@ interface MissionState {
   generateMissions: (
     userId: string,
     conditionRecordId: string,
-    analysis: ConditionAnalysis
+    analysis: ConditionAnalysis,
+    surveyData?: SurveyData | null
   ) => Promise<boolean>;
   completeMission: (missionId: string, userId: string) => Promise<Mission | null>;
   getMissionByType: (type: MissionType) => Mission | undefined;
@@ -49,13 +51,14 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     }
   },
 
-  generateMissions: async (userId, conditionRecordId, analysis) => {
+  generateMissions: async (userId, conditionRecordId, analysis, surveyData) => {
     set({ isLoading: true, error: null });
     try {
       const { missions } = await generateMissions({
         userId,
         conditionRecordId,
         analysis,
+        surveyData,
       });
       set({ missions, isLoading: false });
       return true;

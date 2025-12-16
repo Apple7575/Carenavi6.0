@@ -18,6 +18,7 @@ import { useConditionStore } from '../stores/useConditionStore';
 import { useMissionStore } from '../stores/useMissionStore';
 import { useGrowthStore } from '../stores/useGrowthStore';
 import { useRecommendationStore } from '../stores/useRecommendationStore';
+import { useSurveyStore } from '../stores/useSurveyStore';
 import { ChatMessage, Mission } from '../types';
 import { CHARACTER_GREETINGS } from '../utils/constants';
 import { getRandomItem } from '../utils/helpers';
@@ -50,6 +51,7 @@ export default function HomeScreen() {
 
   const { addXPAndSync } = useGrowthStore();
   const { fetchRecommendations } = useRecommendationStore();
+  const { surveyData } = useSurveyStore();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -97,17 +99,27 @@ export default function HomeScreen() {
       const result = await analyzeAndSave(session.user.id, text);
 
       if (result.success && result.analysis && result.conditionRecordId) {
-        // Add response based on analysis
-        addMessage(
-          'character',
-          `알겠어! ${result.analysis.mainIssue || '오늘 컨디션'}에 맞는 미션을 준비할게!`
-        );
+        // Check if AI analysis failed and fallback was used
+        if (result.usedFallback) {
+          // Inform user about the fallback
+          addMessage(
+            'character',
+            '음... AI 분석이 잠시 안되네. 기본 미션으로 준비할게!'
+          );
+        } else {
+          // Add response based on analysis
+          addMessage(
+            'character',
+            `알겠어! ${result.analysis.mainIssue || '오늘 컨디션'}에 맞는 미션을 준비할게!`
+          );
+        }
 
-        // Generate missions based on analysis
+        // Generate missions based on analysis and survey data
         await generateMissions(
           session.user.id,
           result.conditionRecordId,
-          result.analysis
+          result.analysis,
+          surveyData
         );
 
         // T098: Fetch product recommendations based on condition
@@ -120,10 +132,12 @@ export default function HomeScreen() {
         // Transition to in_progress
         await transitionToInProgress(session.user.id);
       } else {
-        addMessage('character', '좀 더 자세히 알려줄래요?');
+        // Show specific error message if available
+        const errorMsg = result.errorMessage || '좀 더 자세히 알려줄래요?';
+        addMessage('character', errorMsg);
       }
     },
-    [session?.user?.id, addMessage, analyzeAndSave, generateMissions, fetchRecommendations, transitionToInProgress]
+    [session?.user?.id, addMessage, analyzeAndSave, generateMissions, fetchRecommendations, transitionToInProgress, surveyData]
   );
 
   const handleCompleteMission = useCallback(
@@ -209,7 +223,7 @@ export default function HomeScreen() {
             />
           ))}
           {isAnalyzing && (
-            <ChatBubble type="character" content="분석 중..." />
+            <ChatBubble type="character" content="컨디션 분석 중... 잠시만 기다려줘!" />
           )}
         </ScrollView>
         <ChatInput

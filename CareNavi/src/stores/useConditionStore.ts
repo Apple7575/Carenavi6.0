@@ -7,6 +7,8 @@ interface AnalyzeResult {
   success: boolean;
   analysis?: ConditionAnalysis;
   conditionRecordId?: string;
+  usedFallback?: boolean;
+  errorMessage?: string;
 }
 
 interface ConditionStoreState {
@@ -51,7 +53,7 @@ export const useConditionStore = create<ConditionStoreState>((set) => ({
   analyzeAndSave: async (userId: string, rawInput: string): Promise<AnalyzeResult> => {
     set({ isAnalyzing: true, error: null });
     try {
-      const { record, analysis } = await conditionService.analyzeCondition({
+      const { record, analysis, usedFallback, errorMessage } = await conditionService.analyzeCondition({
         userId,
         rawInput,
       });
@@ -65,11 +67,13 @@ export const useConditionStore = create<ConditionStoreState>((set) => ({
         success: true,
         analysis,
         conditionRecordId: record.id,
+        usedFallback,
+        errorMessage,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to analyze condition';
       set({ error: message, isAnalyzing: false });
-      return { success: false };
+      return { success: false, errorMessage: message };
     }
   },
 

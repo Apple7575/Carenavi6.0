@@ -26,6 +26,8 @@ interface AnalyzeConditionRequest {
 interface AnalyzeConditionResponse {
   record: ConditionRecord;
   analysis: ConditionAnalysis;
+  usedFallback: boolean;
+  errorMessage?: string;
 }
 
 /**
@@ -42,14 +44,9 @@ export async function analyzeCondition(
 
   const today = getTodayDate();
 
-  // T043: Analyze with AI (with error handling)
-  let analysis: ConditionAnalysis;
-  try {
-    analysis = await analyzeConditionWithAI(request.rawInput);
-  } catch (error) {
-    console.warn('AI analysis failed, using defaults:', error);
-    analysis = DEFAULT_CONDITION_ANALYSIS;
-  }
+  // T043: Analyze with AI (with improved error handling)
+  const analysisResult = await analyzeConditionWithAI(request.rawInput);
+  const { analysis, usedFallback, errorMessage } = analysisResult;
 
   // Check for existing record today (upsert)
   const { data: existingRecord } = await supabase
@@ -99,7 +96,7 @@ export async function analyzeCondition(
     record = data as ConditionRecord;
   }
 
-  return { record, analysis };
+  return { record, analysis, usedFallback, errorMessage };
 }
 
 /**

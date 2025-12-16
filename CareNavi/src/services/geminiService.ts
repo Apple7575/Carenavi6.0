@@ -2,9 +2,25 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ENV } from '../config/env';
 import { ConditionAnalysis, Mission, MissionType } from '../types';
-import { DEFAULT_CONDITION_ANALYSIS, GEMINI_MODEL, XP_REWARDS, MISSION_DURATIONS } from '../utils/constants';
+import { SurveyData, HEALTH_CONCERN_OPTIONS, EXERCISE_TIME_OPTIONS, SLEEP_HOURS_OPTIONS, HEALTH_GOAL_OPTIONS } from '../types/survey';
+import { DEFAULT_CONDITION_ANALYSIS, GEMINI_MODEL, XP_REWARDS, MISSION_DURATIONS, AI_RETRY_COUNT, AI_TIMEOUT_MS } from '../utils/constants';
 
 let genAI: GoogleGenerativeAI | null = null;
+
+// Custom error types for better error handling
+export class AITimeoutError extends Error {
+  constructor() {
+    super('AI 응답 시간이 초과되었어요. 다시 시도해주세요.');
+    this.name = 'AITimeoutError';
+  }
+}
+
+export class AIResponseError extends Error {
+  constructor(message: string = 'AI 응답 형식이 올바르지 않아요.') {
+    super(message);
+    this.name = 'AIResponseError';
+  }
+}
 
 /**
  * Initialize Gemini AI client
@@ -17,10 +33,50 @@ export function initializeGemini(): GoogleGenerativeAI {
 }
 
 /**
- * Analyze condition input using Gemini AI
+ * Retry wrapper for AI calls with exponential backoff
  */
-export async function analyzeConditionWithAI(rawInput: string): Promise<ConditionAnalysis> {
-  try {
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number = AI_RETRY_COUNT
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`AI call attempt ${i + 1} failed:`, lastError.message);
+      if (i < retries) {
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Execute AI call with timeout
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number = AI_TIMEOUT_MS): Promise<T> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new AITimeoutError()), ms);
+  });
+  return Promise.race([promise, timeoutPromise]);
+}
+
+/**
+ * Analyze condition input using Gemini AI
+ * Returns { analysis, usedFallback } to indicate if fallback was used
+ */
+export interface AnalysisResult {
+  analysis: ConditionAnalysis;
+  usedFallback: boolean;
+  errorMessage?: string;
+}
+
+export async function analyzeConditionWithAI(rawInput: string): Promise<AnalysisResult> {
+  const executeAnalysis = async (): Promise<AnalysisResult> => {
     const ai = initializeGemini();
     const model = ai.getGenerativeModel({ model: GEMINI_MODEL });
 
@@ -52,15 +108,24 @@ export async function analyzeConditionWithAI(rawInput: string): Promise<Conditio
     // Parse JSON response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.warn('AI response not in expected JSON format');
-      return DEFAULT_CONDITION_ANALYSIS;
+      throw new AIResponseError('AI 응답을 파싱할 수 없어요.');
     }
 
     const analysis = JSON.parse(jsonMatch[0]) as ConditionAnalysis;
-    return analysis;
+    return { analysis, usedFallback: false };
+  };
+
+  try {
+    // Execute with timeout and retry
+    return await withRetry(() => withTimeout(executeAnalysis()));
   } catch (error) {
-    console.error('Gemini AI analysis failed:', error);
-    return DEFAULT_CONDITION_ANALYSIS;
+    console.error('Gemini AI analysis failed after retries:', error);
+    const errorMessage = error instanceof Error ? error.message : 'AI 분석에 실패했어요.';
+    return {
+      analysis: DEFAULT_CONDITION_ANALYSIS,
+      usedFallback: true,
+      errorMessage,
+    };
   }
 }
 
@@ -82,27 +147,51 @@ export async function testGemini(): Promise<boolean> {
 }
 
 /**
- * T055: Generate personalized missions based on condition analysis
+ * Helper function to convert survey data to human-readable strings
+ */
+function formatSurveyDataForPrompt(survey: SurveyData): string {
+  const healthConcern = HEALTH_CONCERN_OPTIONS.find(o => o.value === survey.healthConcern)?.label || survey.healthConcern;
+  const exerciseTime = EXERCISE_TIME_OPTIONS.find(o => o.value === survey.exerciseTime)?.label || survey.exerciseTime;
+  const sleepHours = SLEEP_HOURS_OPTIONS.find(o => o.value === survey.sleepHours)?.label || survey.sleepHours;
+  const healthGoals = survey.healthGoals.map(g => HEALTH_GOAL_OPTIONS.find(o => o.value === g)?.label || g).join(', ');
+
+  return `
+사용자 프로필 (설문조사 결과):
+- 주요 건강 고민: ${healthConcern}
+- 하루 운동 시간: ${exerciseTime}
+- 하루 수면 시간: ${sleepHours}
+- 스트레스 수준: ${survey.stressLevel}/5
+- 건강 목표: ${healthGoals}`;
+}
+
+/**
+ * T055: Generate personalized missions based on condition analysis and survey data
  */
 export async function generateMissionsWithAI(
-  analysis: ConditionAnalysis
+  analysis: ConditionAnalysis,
+  surveyData?: SurveyData | null
 ): Promise<Partial<Mission>[]> {
   try {
     const ai = initializeGemini();
     const model = ai.getGenerativeModel({ model: GEMINI_MODEL });
 
-    const prompt = `당신은 건강 미션 생성 AI입니다.
-사용자의 컨디션 분석 결과를 바탕으로 맞춤형 미션 3개를 생성하세요.
+    const surveyContext = surveyData ? formatSurveyDataForPrompt(surveyData) : '';
 
-사용자 컨디션:
+    const prompt = `당신은 건강 미션 생성 AI입니다.
+사용자의 컨디션 분석 결과${surveyData ? '와 설문조사 프로필' : ''}을 바탕으로 맞춤형 미션 3개를 생성하세요.
+
+오늘 컨디션:
 - 기분: ${analysis.mood}
 - 신체: ${analysis.physical}
 - 주요 이슈: ${analysis.mainIssue}
+${surveyContext}
 
 미션 타입별 요구사항:
 1. easy: 5분 이내 완료 가능한 간단한 미션 (예: 물 마시기, 스트레칭)
 2. normal: 10-15분 소요되는 중간 난이도 미션 (예: 짧은 산책, 명상)
 3. challenge: 20-30분 소요되는 도전 미션 (예: 운동, 취미 활동)
+
+${surveyData ? `미션 생성 시 사용자의 건강 목표(${formatSurveyDataForPrompt(surveyData).split('건강 목표: ')[1]?.split('\n')[0] || ''})에 맞춰 미션을 제안하세요.` : ''}
 
 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):
 [

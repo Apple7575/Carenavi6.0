@@ -35,7 +35,8 @@ export const MISSION_DURATIONS: Record<MissionType, string> = {
 
 // AI Configuration
 export const GEMINI_MODEL = 'gemini-2.0-flash-lite';
-export const AI_TIMEOUT_MS = 5000;
+export const AI_TIMEOUT_MS = 15000; // Increased for better reliability
+export const AI_RETRY_COUNT = 2;
 
 // Daily state reset time (local timezone)
 export const RESET_HOUR = 0; // Midnight
