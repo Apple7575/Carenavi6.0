@@ -10,6 +10,16 @@ export const supabase = createClient(ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  realtime: {
+    params: {
+      eventsPerSecond: 0,
+    },
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'carenavi-react-native',
+    },
+  },
 });
 
 // Test connection to Supabase
