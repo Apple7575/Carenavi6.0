@@ -5,7 +5,7 @@ import { Text } from 'react-native';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
-import StoreScreen from '../screens/StoreScreen';
+import RecordScreen from '../screens/RecordScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 // Tab icon placeholder component
@@ -48,7 +48,7 @@ export default function RootNavigator() {
     >
       <Tab.Screen
         name="Record"
-        component={StoreScreen}
+        component={RecordScreen}
         options={{ tabBarLabel: '기록' }}
       />
       <Tab.Screen

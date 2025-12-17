@@ -1,6 +1,6 @@
 // T064: Character avatar component
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { CharacterStage } from '../../types';
 
 interface CharacterAvatarProps {
@@ -9,18 +9,12 @@ interface CharacterAvatarProps {
   testID?: string;
 }
 
-const STAGE_EMOJI: Record<CharacterStage, string> = {
-  egg: '\ud83e\udd5a',
-  chick: '\ud83d\udc23',
-  chicken: '\ud83d\udc14',
-  phoenix: '\ud83d\udd25',
-};
-
-const STAGE_NAME: Record<CharacterStage, string> = {
-  egg: '\uc54c',
-  chick: '\ubcd1\uc544\ub9ac',
-  chicken: '\ub2ed',
-  phoenix: '\ubd88\uc0ac\uc870',
+// Import character images
+const STAGE_IMAGES: Record<CharacterStage, ImageSourcePropType> = {
+  egg: require('../../assets/images/lv1.png'),
+  chick: require('../../assets/images/lv2.png'),
+  chicken: require('../../assets/images/lv3.png'),
+  phoenix: require('../../assets/images/lv4.png'),
 };
 
 export default function CharacterAvatar({
@@ -40,10 +34,14 @@ export default function CharacterAvatar({
         },
       ]}
     >
-      <Text style={[styles.emoji, { fontSize: size * 0.5 }]}>
-        {STAGE_EMOJI[stage]}
-      </Text>
-      <Text style={styles.stageName}>{STAGE_NAME[stage]}</Text>
+      <Image
+        source={STAGE_IMAGES[stage]}
+        style={{
+          width: size * 0.85,
+          height: size * 0.85,
+        }}
+        resizeMode="contain"
+      />
     </View>
   );
 }
@@ -58,13 +56,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 6,
-  },
-  emoji: {
-    textAlign: 'center',
-  },
-  stageName: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    overflow: 'hidden',
   },
 });

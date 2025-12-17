@@ -7,14 +7,17 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../services/supabase';
 import { useAuthStore } from '../stores/useAuthStore';
+import StoreScreen from './StoreScreen';
 
 export default function ProfileScreen() {
   const { session } = useAuthStore();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showStoreModal, setShowStoreModal] = useState(false);
 
   const handleLogout = async () => {
     Alert.alert(
@@ -104,6 +107,23 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Lab Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>실험실</Text>
+          <View style={styles.labCard}>
+            <Text style={styles.labDesc}>
+              개발 중인 기능들을 미리 체험해보세요
+            </Text>
+            <TouchableOpacity
+              style={styles.labButton}
+              onPress={() => setShowStoreModal(true)}
+            >
+              <Text style={styles.labButtonIcon}>🛒</Text>
+              <Text style={styles.labButtonText}>스토어</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Account Actions */}
         <View style={styles.section}>
           <TouchableOpacity
@@ -121,6 +141,29 @@ export default function ProfileScreen() {
           <Text style={styles.version}>CareNavi v1.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* Store Modal */}
+      <Modal
+        visible={showStoreModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowStoreModal(false)}
+      >
+        <SafeAreaView style={styles.storeModalContainer}>
+          <View style={styles.storeHeader}>
+            <TouchableOpacity
+              style={styles.storeBackButton}
+              onPress={() => setShowStoreModal(false)}
+            >
+              <Text style={styles.storeBackIcon}>←</Text>
+              <Text style={styles.storeBackText}>뒤로</Text>
+            </TouchableOpacity>
+            <Text style={styles.storeHeaderTitle}>실험실 - 스토어</Text>
+            <View style={styles.storeHeaderSpacer} />
+          </View>
+          <StoreScreen />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -217,5 +260,71 @@ const styles = StyleSheet.create({
   version: {
     fontSize: 12,
     color: '#999',
+  },
+  labCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E8D5FF',
+    borderStyle: 'dashed',
+  },
+  labDesc: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 12,
+  },
+  labButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F0FF',
+    borderRadius: 8,
+    padding: 12,
+    alignSelf: 'flex-start',
+  },
+  labButtonIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  labButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  storeModalContainer: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  storeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  storeBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  storeBackIcon: {
+    fontSize: 20,
+    color: '#4A90D9',
+    marginRight: 4,
+  },
+  storeBackText: {
+    fontSize: 16,
+    color: '#4A90D9',
+    fontWeight: '500',
+  },
+  storeHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  storeHeaderSpacer: {
+    width: 60,
   },
 });
