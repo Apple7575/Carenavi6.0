@@ -5,25 +5,22 @@ import { Text } from 'react-native';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
-import CharacterScreen from '../screens/CharacterScreen';
 import StoreScreen from '../screens/StoreScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 // Tab icon placeholder component
 const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => (
   <Text style={{ fontSize: 20, color: focused ? '#4A90D9' : '#999' }}>
+    {name === 'Record' && '📋'}
     {name === 'Home' && '🏠'}
-    {name === 'Character' && '🐣'}
-    {name === 'Store' && '🛒'}
-    {name === 'Profile' && '👤'}
+    {name === 'Settings' && '⚙️'}
   </Text>
 );
 
 export type RootTabParamList = {
+  Record: undefined;
   Home: undefined;
-  Character: undefined;
-  Store: undefined;
-  Profile: undefined;
+  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -47,26 +44,22 @@ export default function RootNavigator() {
           fontSize: 12,
         },
       })}
+      initialRouteName="Home"
     >
+      <Tab.Screen
+        name="Record"
+        component={StoreScreen}
+        options={{ tabBarLabel: '기록' }}
+      />
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{ tabBarLabel: '홈' }}
       />
       <Tab.Screen
-        name="Character"
-        component={CharacterScreen}
-        options={{ tabBarLabel: '헬띠' }}
-      />
-      <Tab.Screen
-        name="Store"
-        component={StoreScreen}
-        options={{ tabBarLabel: '스토어' }}
-      />
-      <Tab.Screen
-        name="Profile"
+        name="Settings"
         component={ProfileScreen}
-        options={{ tabBarLabel: '프로필' }}
+        options={{ tabBarLabel: '관리' }}
       />
     </Tab.Navigator>
   );

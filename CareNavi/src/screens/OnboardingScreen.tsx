@@ -22,6 +22,9 @@ import {
 } from '../types/survey';
 import { useSurveyStore } from '../stores/useSurveyStore';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useMissionStore } from '../stores/useMissionStore';
+import { useDailyStore } from '../stores/useDailyStore';
+import { generateInitialMissions } from '../services/missionService';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
@@ -32,6 +35,8 @@ type Question = 1 | 2 | 3 | 4 | 5;
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { session } = useAuthStore();
   const { submitSurvey, isLoading } = useSurveyStore();
+  const { setMissions } = useMissionStore();
+  const { transitionToInProgress } = useDailyStore();
 
   const [currentQuestion, setCurrentQuestion] = useState<Question>(1);
   const [surveyData, setSurveyData] = useState<Partial<SurveyData>>({
@@ -82,6 +87,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
     const success = await submitSurvey(session.user.id, data);
     if (success) {
+      try {
+        // Generate initial missions based on survey
+        const missions = await generateInitialMissions(session.user.id, data);
+        setMissions(missions);
+
+        // Transition daily state to in_progress
+        await transitionToInProgress(session.user.id);
+      } catch (error) {
+        console.error('Failed to generate initial missions:', error);
+      }
       onComplete();
     }
   };

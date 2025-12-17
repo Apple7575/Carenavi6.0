@@ -245,3 +245,43 @@ ${surveyData ? `미션 생성 시 사용자의 건강 목표(${formatSurveyDataF
     throw error;
   }
 }
+
+/**
+ * Chat with AI for health-related questions
+ */
+export async function chatWithAI(
+  userMessage: string,
+  surveyData?: SurveyData | null
+): Promise<string> {
+  try {
+    const ai = initializeGemini();
+    const model = ai.getGenerativeModel({ model: GEMINI_MODEL });
+
+    const surveyContext = surveyData ? formatSurveyDataForPrompt(surveyData) : '';
+
+    const prompt = `당신은 '랩피'라는 이름의 친근한 건강 도우미 강아지 캐릭터입니다.
+사용자의 건강 관련 질문에 친근하고 도움이 되는 방식으로 답변해주세요.
+
+규칙:
+1. 반말로 친근하게 대화해요 (예: "~해!", "~야", "~지?")
+2. 간결하게 답변해요 (3-4문장 이내)
+3. 이모지를 적절히 사용해요
+4. 건강 관련 질문에만 답변해요
+5. 의학적 진단이나 처방은 하지 않고, 일반적인 건강 팁만 제공해요
+6. 심각한 증상은 병원 방문을 권유해요
+
+${surveyContext}
+
+사용자 질문: "${userMessage}"
+
+랩피로서 친근하게 답변해주세요:`;
+
+    const result = await withTimeout(model.generateContent(prompt), AI_TIMEOUT_MS);
+    const responseText = result.response.text();
+
+    return responseText.trim();
+  } catch (error) {
+    console.error('AI chat failed:', error);
+    throw error;
+  }
+}
